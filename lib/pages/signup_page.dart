@@ -67,9 +67,8 @@ class _SignUpPageState extends State<SignUpPage> {
     if (firebaseUser == null) return;
 
     await Prefs.saveUserId(firebaseUser.uid);
-    DataService.storeUser(users).then((value) => {
-      Navigator.pushReplacementNamed(context, HomePage.id),
-    });
+    DataService.storeUser(users);
+    Navigator.pushReplacementNamed(context, HomePage.id);
   }
 
   _callSignInPage() {

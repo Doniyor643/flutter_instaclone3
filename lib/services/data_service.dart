@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_instaclone/model/post_model.dart';
 import 'package:flutter_instaclone/model/users_model.dart';
@@ -28,7 +26,7 @@ class DataService {
     users.device_type = params["device_type"].toString();
     users.device_token = params["device_token"].toString();
 
-    return _firestore.collection(folder_users).doc(users.uid).set(users.toJson());
+    return _firestore.collection('users').doc(users.uid).set(users.toJson());
   }
 
   static Future<Users> loadUser() async {
