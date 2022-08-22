@@ -11,103 +11,86 @@ import 'my_upload_page.dart';
 
 
 class HomePage extends StatefulWidget {
-  static const String id = "home_page";
+  static const String id = 'home_page';
 
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({required Key key}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  late final  FirebaseMessaging _firebaseMessaging;
-
-  PageController _pageController = PageController();
-  int _currentTap = 0;
-
+  // Notification
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   // _initNotification() {
   //   _firebaseMessaging.configure(
-  //     onMessage: (Map<String, dynamic> message) async {
-  //       print("onMessage: $message");
-  //       Utils.showLocalNotification(message);
-  //     },
-  //     onLaunch: (Map<String, dynamic> message) async {
-  //       //print("onLaunch: $message");
-  //     },
-  //     onResume: (Map<String, dynamic> message) async {
-  //       //print("onResume: $message");
-  //     },
+  //       onMessage: (Map<String, dynamic> message) async {
+  //         print('onMessage: $message');
+  //         Utils.showLocalNotification(message);
+  //       },
+  //       onLaunch: (Map<String, dynamic> message) async {
+  //         // print('onLaunch: $message');
+  //       },
+  //       onResume: (Map<String, dynamic> message) async {
+  //         // print('onLaunch: $message');
+  //       }
   //   );
   // }
+
+  _initNotification2(){
+    _firebaseMessaging.sendMessage();
+  }
+
+  // values
+  late PageController _pageController;
+  var _currentIndex = 0;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    //_initNotification();
+
     _pageController = PageController();
+    //_initNotification();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        children: [
-          MyFeedPage(pageController: _pageController),
-          const MySearchPage(),
-          MyUploadPage(pageController: _pageController),
-          const MyLikesPage(),
-          const MyProfilePage(),
-        ],
-        onPageChanged: (int index){
-          setState(() {
-            _currentTap = index;
-          });
-        },
+      body: SafeArea(
+        child: SafeArea(
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (int index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            children: [
+              MyFeedPage(_pageController,),
+              const MySearchPage(),
+              MyUploadPage(_pageController),
+              const MyLikesPage(),
+              const MyProfilePage(),
+            ],
+          ),
+        ),
       ),
-
       bottomNavigationBar: CupertinoTabBar(
-        onTap: (int index){
+        currentIndex: _currentIndex,
+        onTap: (int index) {
           setState(() {
-            _currentTap = index;
-            _pageController.animateToPage(index,
-                duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
+            _currentIndex = index;
+            _pageController.animateToPage(index, duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
           });
         },
-        currentIndex: _currentTap,
-        activeColor: const Color.fromRGBO(193, 53, 132, 1),
+        activeColor: const Color(0xffFCAF45),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.home,
-              size: 32,
-            ),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.search,
-              size: 32,
-            ),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.add_box,
-              size: 32,
-            ),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.favorite,
-              size: 32,
-            ),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.account_circle,
-              size: 32,
-            ),
-          )
+          BottomNavigationBarItem(icon: Icon(Icons.home)),
+          BottomNavigationBarItem(icon: Icon(Icons.search)),
+          BottomNavigationBarItem(icon: Icon(Icons.add_box)),
+          BottomNavigationBarItem(icon: Icon(Icons.favorite)),
+          BottomNavigationBarItem(icon: Icon(Icons.account_circle_rounded)),
         ],
       ),
     );

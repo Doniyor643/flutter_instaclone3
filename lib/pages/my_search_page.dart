@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_instaclone/model/users_model.dart';
-import 'package:flutter_instaclone/services/data_service.dart';
+
+import '../model/users_model.dart';
+import '../services/data_service.dart';
+import '../services/http_service.dart';
+
 
 class MySearchPage extends StatefulWidget {
+  static const String id = 'my_search_page';
+
   const MySearchPage({Key? key}) : super(key: key);
 
   @override
@@ -10,55 +15,70 @@ class MySearchPage extends StatefulWidget {
 }
 
 class _MySearchPageState extends State<MySearchPage> {
-  bool isLoading = false;
-  var searchController = TextEditingController();
-  List<Users> items = [];
+  // values
+  final _searchController = TextEditingController();
+  List<Users> users = [];
+  bool isLoading = true;
 
-  void _apiSearchUsers(String keyword){
+  @override
+  void initState() {
+    super.initState();
+
+    _apiSearchUsers("");
+  }
+
+  _apiSearchUsers(String keyword) {
     setState(() {
       isLoading = true;
     });
-    DataService.searchUsers(keyword).then((users) => {
-      _respSearchUsers(users),
+
+    DataService.searchUsers(keyword).then((respUsers) => {
+      _respSearchUsers(respUsers),
     });
   }
 
-  void  _respSearchUsers(List<Users> users){
-    setState(() {
-      items = users;
+  _respSearchUsers(List<Users> respUsers) {
+
+      users = respUsers;
       isLoading = false;
-    });
+
   }
 
-  void _apiFollowUser(Users someone) async{
-    setState(() {
-      isLoading = true;
-    });
+  // Follow action
+  _apiFollowUser(Users someone) async {
+    isLoading = true;
+
     await DataService.followUser(someone);
-    setState(() {
+
       someone.followed = true;
       isLoading = false;
-    });
+
+
     DataService.storePostsToMyFeed(someone);
+
+    // Notification
+    String username = '';
+    DataService.loadUser(id: '').then((userMe) {
+      username = userMe.fullName;
+    });
+
+    Map<String, dynamic> params = HttpService.paramCreate(username, someone.deviceToken);
+    HttpService.POST(params);
   }
 
-  void _apiUnfollowUser(Users someone) async{
+  _apiUnfollowUser(Users someone) async {
     setState(() {
       isLoading = true;
     });
+
     await DataService.unfollowUser(someone);
+
     setState(() {
       someone.followed = false;
       isLoading = false;
     });
-    DataService.removePostsFromMyFeed(someone);
-  }
 
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    _apiSearchUsers("");
+    DataService.removePostsFromMyFeed(someone);
   }
 
   @override
@@ -69,149 +89,175 @@ class _MySearchPageState extends State<MySearchPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          "Search",
+          'Search',
           style: TextStyle(
-              color: Colors.black, fontFamily: 'Billabong', fontSize: 25),
+              color: Colors.black, fontSize: 25, fontFamily: 'Billabong'),
         ),
+        centerTitle: true,
       ),
-
       body: Stack(
         children: [
           Container(
-            padding: const EdgeInsets.only(left: 20,right: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height,
             child: Column(
               children: [
-                //#searchuser
+                // TextField : Search
                 Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.only(left: 10, right: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(7),
+                    color: Colors.grey.withOpacity(0.4),
                   ),
-                  height: 45,
                   child: TextField(
+                    controller: _searchController,
                     style: const TextStyle(color: Colors.black87),
-                    controller: searchController,
-                    onChanged: (input){
-                      print(input);
+                    onChanged: (input) {
                       _apiSearchUsers(input);
                     },
                     decoration: const InputDecoration(
-                      hintText: "Search",
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(fontSize: 15.0, color: Colors.grey),
-                      icon: Icon(Icons.search, color: Colors.grey),
-                    ),
+                        hintText: 'Search',
+                        hintStyle: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 15,
+                        ),
+                        icon: Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
+                        border: InputBorder.none),
                   ),
                 ),
 
+                const SizedBox(
+                  height: 10,
+                ),
+
+                // Users
                 Expanded(
                   child: ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (ctx, index){
-                      return _itemOfUser(items[index]);
+                    itemCount: users.length,
+                    itemBuilder: (ctx, i) {
+                      return _itemsOfList(users[i]);
                     },
                   ),
                 ),
               ],
             ),
           ),
-
           isLoading
               ? const Center(
-            child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(),
           )
-              : const SizedBox.shrink(),
+              : const SizedBox.shrink()
         ],
       ),
     );
   }
 
-  Widget _itemOfUser(Users user){
-    return SizedBox(
-      height: 90,
+  Widget _itemsOfList(Users user) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
       child: Row(
         children: [
-
+          // Profile Image
           Container(
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(70),
               border: Border.all(
-                width: 1.5,
-                color: const Color.fromRGBO(193, 53, 132, 1),
+                color: const Color(0xffFCAF45),
+                width: 2,
               ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(22.5),
-              child: user.img_url.isEmpty ? const Image(
-                image: AssetImage("assets/images/ic_person.png"),
+              child: user.imgUrl == null || user.imgUrl.isEmpty
+                  ? const Image(
+                image: AssetImage("assets/images/ic_profile.png"),
                 width: 45,
                 height: 45,
                 fit: BoxFit.cover,
-              ): Image.network(
-                user.img_url,
+              )
+                  : Image.network(
+                user.imgUrl,
                 width: 45,
                 height: 45,
                 fit: BoxFit.cover,
               ),
             ),
           ),
+
           const SizedBox(
-            width: 15,
+            width: 5,
           ),
+
+          // FullName || Email
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // FullName
               Text(
-                user.fullname,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                user.fullName,
+                style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16),
               ),
+
               const SizedBox(
-                height: 3,
+                height: 5,
               ),
+
+              // Email
               Text(
                 user.email,
-                style: const TextStyle(color: Colors.black54),
+                style: const TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.normal,
+                    fontSize: 14),
               ),
             ],
           ),
 
+          // Button : Follow
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-
                 GestureDetector(
-                  onTap: (){
-                    if(user.followed){
+                  onTap: () {
+                    if (user.followed) {
                       _apiUnfollowUser(user);
-                    }else{
+                    } else {
                       _apiFollowUser(user);
                     }
                   },
                   child: Container(
-                    width: 100,
                     height: 30,
+                    width: 100,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(3),
                       border: Border.all(
-                        width: 1,
-                        color: Colors.grey,
+                        color: Colors.grey.withOpacity(0.4),
                       ),
                     ),
                     child: Center(
-                      child: user.followed ? const Text("Following") : const Text("Follow"),
+                      child: Text(
+                        user.followed ? 'Followed' : 'Follow',
+                        style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ),
-
               ],
             ),
           ),
-
         ],
       ),
     );

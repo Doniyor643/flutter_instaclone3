@@ -1,33 +1,34 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-class Prefs{
-
+class Prefs {
   static Future<bool> saveUserId(String userId) async {
+    Prefs.removeUserId();
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.setString('user_id', userId);
+    return prefs.setString('userId', userId);
   }
 
   static Future<String?> loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('user_id');
+    String? token = prefs.getString('userId');
     return token;
   }
 
   static Future<bool> removeUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.remove('user_id');
+    return prefs.remove('userId');
   }
 
-  // Firebase Token
-  static Future<bool> saveFCM(String fcm_token) async {
+  // Firebase token
+  static Future<bool> saveFCM(String fcmToken) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.setString('fcm_token', fcm_token);
+    return prefs.setString('fcmToken', fcmToken);
   }
 
   static Future<String?> loadFCM() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('fcm_token');
+    String? token = prefs.getString('fcmToken');
+
     return token;
   }
-
 }

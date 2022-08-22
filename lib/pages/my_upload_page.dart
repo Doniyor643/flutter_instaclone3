@@ -1,39 +1,42 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_instaclone/model/post_model.dart';
-import 'package:flutter_instaclone/services/data_service.dart';
-import 'package:flutter_instaclone/services/file_service.dart';
 import 'package:image_picker/image_picker.dart';
 
-class MyUploadPage extends StatefulWidget {
-  final PageController pageController;
+import '../model/post_model.dart';
+import '../services/data_service.dart';
+import '../services/file_service.dart';
 
-  const MyUploadPage({Key? key, required this.pageController}) : super(key: key);
+class MyUploadPage extends StatefulWidget {
+  static const String id = 'my_upload_page';
+
+  PageController pageController;
+  MyUploadPage(this.pageController, {Key? key}) : super(key: key);
 
   @override
   _MyUploadPageState createState() => _MyUploadPageState();
 }
 
 class _MyUploadPageState extends State<MyUploadPage> {
-  bool isLoading = false;
-  var captionController = TextEditingController();
+  // values
+  final _captionController = TextEditingController();
   XFile? _image;
+  bool isLoading = false;
   ImagePicker imagePicker = ImagePicker();
 
-  _imgFromGallery() async {
+  // Image Picker
+  // ===========================================================================
+  _imgFromCamera() async {
     XFile? image = await imagePicker.pickImage(
-        source: ImageSource.gallery, imageQuality: 50);
+        source: ImageSource.camera, imageQuality: 50);
 
     setState(() {
       _image = image!;
     });
   }
 
-  _imgFromCamera() async {
+  _imgFromGallery() async {
     XFile? image = await imagePicker.pickImage(
-        source: ImageSource.camera, imageQuality: 50
-    );
+        source: ImageSource.gallery, imageQuality: 50);
 
     setState(() {
       _image = image!;
@@ -65,47 +68,50 @@ class _MyUploadPageState extends State<MyUploadPage> {
               ],
             ),
           );
-        }
-    );
+        });
   }
+  // ===========================================================================
 
   _uploadNewPost() {
-    String caption = captionController.text.toString().trim();
-    if (caption.isEmpty) return;
-    if (_image == null) return;
+    String _caption = _captionController.text.toString();
+    if (_caption.isEmpty || _image == null) return;
+
+    // Send post to server
     _apiPostImage();
   }
 
-  void  _apiPostImage(){
+  _apiPostImage() {
     setState(() {
       isLoading = true;
     });
-    FileService.uploadPostImage(File(_image!.path)).then((downloadUrl) => {
+
+    FileService.uploadPostImage(_image!).then((downloadUrl) => {
       _resPostImage(downloadUrl!),
     });
   }
 
-  void _resPostImage(String downloadUrl){
-    String caption = captionController.text.toString().trim();
-    Post post = Post(caption: caption,img_post: downloadUrl);
+  _resPostImage(String downloadUrl) {
+    String caption = _captionController.text.toString().trim();
+    Post post = Post(postImage: downloadUrl, caption: caption);
     _apiStorePost(post);
   }
 
-  void _apiStorePost(Post post) async{
+  _apiStorePost(Post post) async {
     // Post to posts
     Post posted = await DataService.storePost(post);
+
     // Post to feeds
-    DataService.storeFeed(posted).then((value) => {
-      _moveToFeed(),
-    });
+    DataService.storeFeed(post).then((value) => {_moveToFeed()});
   }
 
-  void _moveToFeed(){
+  _moveToFeed() {
+    _image;
+    _captionController.text = '';
+
     setState(() {
       isLoading = false;
     });
-    captionController.text = "";
-    //_image = null;
+
     widget.pageController.animateToPage(0,
         duration: const Duration(milliseconds: 200), curve: Curves.easeIn);
   }
@@ -118,103 +124,104 @@ class _MyUploadPageState extends State<MyUploadPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          "Upload",
+          'Upload',
           style: TextStyle(
-              color: Colors.black, fontFamily: 'Billabong', fontSize: 25),
+              color: Colors.black, fontSize: 25, fontFamily: 'Billabong'),
         ),
+        centerTitle: true,
         actions: [
           IconButton(
-            onPressed: () {
-              _uploadNewPost();
-            },
-            icon: const Icon(
-              Icons.drive_folder_upload,
-              color: Color.fromRGBO(193, 53, 132, 1),
-            ),
-          ),
+              icon: const Icon(
+                Icons.drive_folder_upload,
+                color: Color(0xffFCAF45),
+                size: 25,
+              ),
+              onPressed: _uploadNewPost)
         ],
       ),
-      body: Stack(
-        children: [
-
-          SingleChildScrollView(
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height,
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      _showPicker(context);
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: MediaQuery.of(context).size.width,
-                      color: Colors.grey.withOpacity(0.4),
-                      child: (_image == null)
-                          ? const Center(
-                        child: Icon(
-                          Icons.add_a_photo,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                      )
-                          : Stack(
-                        children: [
-                          Image.file(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Column(children: [
+                // Button : add a photo
+                GestureDetector(
+                  onTap: () {
+                    _showPicker(context);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: MediaQuery.of(context).size.width,
+                    color: Colors.grey.withOpacity(0.4),
+                    child: _image == null
+                        ? const Icon(
+                      Icons.add_a_photo,
+                      color: Colors.grey,
+                      size: 60,
+                    )
+                        : Stack(
+                      children: [
+                        // Added photo
+                        SizedBox(
+                          height: double.infinity,
+                          width: double.infinity,
+                          child: Image.file(
                             File(_image!.path),
-                            width: double.infinity,
-                            height: double.infinity,
                             fit: BoxFit.cover,
                           ),
-                          Container(
-                            width: double.infinity,
-                            color: Colors.black12,
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                IconButton(
-                                  onPressed: (){
-                                    setState(() {
-                                      _image = null;
-                                    });
-                                  },
-                                  icon: const Icon(Icons.highlight_remove),
-                                  color: Colors.white,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.only(left: 10, right: 10, top: 10),
-                    child: TextField(
-                      controller: captionController,
-                      style: const TextStyle(color: Colors.black),
-                      keyboardType: TextInputType.multiline,
-                      minLines: 1,
-                      //Normal textInputField will be displayed
-                      maxLines: 5,
-                      decoration: const InputDecoration(
-                        hintText: "Caption",
-                        hintStyle: TextStyle(fontSize: 17.0, color: Colors.black38),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                        ),
 
-          isLoading
-              ? const Center(
-                child: CircularProgressIndicator(),
-              )
-              : const SizedBox.shrink(),
-        ],
+                        // Button : x => remove added photo
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.black12.withOpacity(0.2),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                  icon: const Icon(
+                                    Icons.highlight_remove,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _image;
+                                    });
+                                  }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // TextField : Caption
+                Container(
+                  margin: const EdgeInsets.all(10),
+                  child: TextField(
+                    style: const TextStyle(color: Colors.black),
+                    controller: _captionController,
+                    decoration: const InputDecoration(
+                      hintText: 'Caption',
+                      hintStyle: TextStyle(color: Colors.black38, fontSize: 17),
+                    ),
+                    keyboardType: TextInputType.multiline,
+                    minLines: 1,
+                    maxLines: 5,
+                  ),
+                ),
+              ]),
+            ),
+            isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(),
+            )
+                : const SizedBox.shrink()
+          ],
+        ),
       ),
     );
   }

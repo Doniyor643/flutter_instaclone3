@@ -1,35 +1,44 @@
+
+
+import 'package:flutter_instaclone/model/users_model.dart';
+
 class Post {
   String uid = '';
-  String fullname = '';
-  String img_user = '';
+  String fullName = '';
+  String imgUser = '';
   String id = '';
-  String img_post = '';
+  String postImage = '';
   String caption = '';
   String date = '';
   bool liked = false;
 
   bool mine = false;
 
-  Post({required this.img_post, required this.caption});
+  Post({required this.postImage, required this.caption});
 
   Post.fromJson(Map<String, dynamic> json)
       : uid = json['uid'],
-        fullname = json['fullname'],
-        img_user = json['img_user'],
-        img_post = json['img_post'],
+        fullName = json['fullName'],
+        imgUser = json['imgUser'],
         id = json['id'],
+        postImage = json['postImage'],
         caption = json['caption'],
         date = json['date'],
         liked = json['liked'];
 
   Map<String, dynamic> toJson() => {
     'uid': uid,
-    'fullname': fullname,
-    'img_user': img_user,
+    'fullName': fullName,
+    'imgUser': imgUser,
     'id': id,
-    'img_post': img_post,
+    'postImage': postImage,
     'caption': caption,
     'date': date,
     'liked': liked,
   };
+
+  @override
+  bool operator ==(Object other) {
+    return (other is Users) && other.uid == uid;
+  }
 }

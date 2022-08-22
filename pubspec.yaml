@@ -26,9 +26,11 @@ dependencies:
   cloud_firestore: ^3.1.16
   cached_network_image: ^3.2.0
   flutter_icons: ^1.1.0
-  firebase_messaging: ^11.4.1
+  firebase_messaging: ^11.4.2
   flutter_local_notifications: ^9.5.3+1
   device_info_plus: ^3.2.3
+  share: ^2.0.4
+  http: ^0.13.4
 
 
 dev_dependencies:

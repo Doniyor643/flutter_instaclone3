@@ -1,37 +1,31 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import 'package:image_picker/image_picker.dart';
-
 import '../model/post_model.dart';
 import '../model/users_model.dart';
-import '../services/auth_service.dart';
 import '../services/data_service.dart';
-import '../services/file_service.dart';
-import '../services/utils_service.dart';
+import '../services/http_service.dart';
 
-class MyProfilePage extends StatefulWidget {
-  static const String id = 'my_profile_page';
 
-  const MyProfilePage({Key? key}) : super(key: key);
+class SomeoneProfilePage extends StatefulWidget {
+  static const String id = 'someone_Profile_Page';
+
+  String uid;
+  SomeoneProfilePage({Key? key, required this.uid}) : super(key: key);
 
   @override
-  _MyProfilePageState createState() => _MyProfilePageState();
+  _SomeoneProfilePageState createState() => _SomeoneProfilePageState();
 }
 
-class _MyProfilePageState extends State<MyProfilePage> {
+class _SomeoneProfilePageState extends State<SomeoneProfilePage> {
   // values
   List<Post> items = [];
   bool _listView = true;
-  XFile? _image;
   bool isLoading = false;
   int countPosts = 0, countFollowers = 0, countFollowing = 0;
 
   String fullName = '', email = '', imgUrl = '';
-
-  ImagePicker imagePicker = ImagePicker();
+  late Users someoneUser;
 
   @override
   void initState() {
@@ -41,71 +35,19 @@ class _MyProfilePageState extends State<MyProfilePage> {
     _apiLoadPosts();
   }
 
-  // Image Picker
-  // ===========================================================================
-  _imgFromCamera() async {
-    XFile? image = await imagePicker.pickImage(
-        source: ImageSource.camera, imageQuality: 50);
-
-    setState(() {
-      _image = image;
-    });
-
-    _apiChangePhoto();
-  }
-
-  _imgFromGallery() async {
-    XFile? image = await imagePicker.pickImage(
-        source: ImageSource.gallery, imageQuality: 50);
-
-    setState(() {
-      _image = image;
-    });
-
-    _apiChangePhoto();
-  }
-
-  void _showPicker(context) {
-    showModalBottomSheet(
-        context: context,
-        builder: (BuildContext bc) {
-          return SafeArea(
-            child: Wrap(
-              children: <Widget>[
-                ListTile(
-                    leading: const Icon(Icons.photo_library),
-                    title: const Text('Pick Photo'),
-                    onTap: () {
-                      _imgFromGallery();
-                      Navigator.of(context).pop();
-                    }),
-                ListTile(
-                  leading: const Icon(Icons.photo_camera),
-                  title: const Text('Take Photo'),
-                  onTap: () {
-                    _imgFromCamera();
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        });
-  }
-  // ===========================================================================
-
   _apiLoadUser() {
     setState(() {
       isLoading = true;
     });
 
-    DataService.loadUser(id: '').then((value) => {
+    DataService.loadUser(id: widget.uid).then((value) => {
       _showUserInfo(value),
     });
   }
 
   _showUserInfo(Users user) {
     setState(() {
+      someoneUser = user;
       fullName = user.fullName;
       email = user.email;
       imgUrl = user.imgUrl;
@@ -115,33 +57,8 @@ class _MyProfilePageState extends State<MyProfilePage> {
     });
   }
 
-  _apiChangePhoto() {
-    setState(() {
-      isLoading = true;
-    });
-
-    if (_image == null) return;
-
-    FileService.uploadUserImage(File(_image!.path)).then((downloadUrl) => {
-      _apiUpdateUser(downloadUrl!),
-    });
-  }
-
-  _apiUpdateUser(String downloadUrl) async {
-    setState(() {
-      isLoading = false;
-    });
-
-    Users user = await DataService.loadUser(id: '');
-
-    user.imgUrl = downloadUrl;
-
-    await DataService.updateUser(user);
-    _apiLoadUser();
-  }
-
   _apiLoadPosts() {
-    DataService.loadPosts().then((value) => {_resLoadPosts(value)});
+    DataService.loadPosts(id: widget.uid).then((value) => {_resLoadPosts(value)});
   }
 
   _resLoadPosts(List<Post> posts) {
@@ -151,23 +68,53 @@ class _MyProfilePageState extends State<MyProfilePage> {
     });
   }
 
-  _actionLogout() async {
-    if (await Utils.commonDialog(context, 'Logout?', 'Do you want to logout?', false)) {
-      AuthService.signOutUser(context);
-    }
+
+  // Follow action
+  _apiFollowUser(Users someone) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    await DataService.followUser(someone);
+
+    setState(() {
+      someone.followed = true;
+      isLoading = false;
+    });
+
+    DataService.storePostsToMyFeed(someone);
+
+    // Notification
+    String username = '';
+    DataService.loadUser(id: '').then((userMe) {
+      username = userMe.fullName;
+    });
+
+    Map<String, dynamic> params = HttpService.paramCreate(username, someone.deviceToken);
+    HttpService.POST(params);
+
+
+    _apiLoadUser();
   }
 
-  _actionRemovePost(Post post) async {
-    if (await Utils.commonDialog(context, 'Logout?', 'Do you want to logout?', false)) {
-      setState(() {
-        isLoading = true;
-      });
+  _apiUnfollowUser(Users someone) async {
+    setState(() {
+      isLoading = true;
+    });
 
-      DataService.removePost(post).then((value) => {
-        _apiLoadPosts(),
-      });
-    }
+    await DataService.unfollowUser(someone);
+
+    setState(() {
+      someone.followed = false;
+      isLoading = false;
+    });
+
+    DataService.removePostsFromMyFeed(someone);
+
+
+    _apiLoadUser();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -182,18 +129,6 @@ class _MyProfilePageState extends State<MyProfilePage> {
               color: Colors.black, fontSize: 25, fontFamily: 'Billabong'),
         ),
         centerTitle: true,
-        actions: [
-          // Button : Logout
-          IconButton(
-            onPressed: () {
-              _actionLogout();
-            },
-            icon: const Icon(
-              Icons.exit_to_app,
-              color: Color(0xffFCAF45),
-            ),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -202,7 +137,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
             padding: const EdgeInsets.all(10),
             child: Column(
               children: [
-                // Edit Profile image
+                // Profile image
                 Stack(
                   children: [
                     // Profile Image
@@ -217,7 +152,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
                         child: imgUrl == null || imgUrl.isEmpty
                             ? const Image(
                           image:
-                          AssetImage("assets/images/defold_photo.png"),
+                          AssetImage("assets/images/ic_profile.png"),
                           width: 70,
                           height: 70,
                           fit: BoxFit.cover,
@@ -230,26 +165,6 @@ class _MyProfilePageState extends State<MyProfilePage> {
                         ),
                       ),
                     ),
-
-                    // Button : Edit Profile image
-                    SizedBox(
-                      height: 92,
-                      width: 92,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          IconButton(
-                              icon: const Icon(
-                                Icons.add_circle,
-                                color: Color(0xffFCAF45),
-                              ),
-                              onPressed: () {
-                                _showPicker(context);
-                              }),
-                        ],
-                      ),
-                    )
                   ],
                 ),
 
@@ -273,6 +188,46 @@ class _MyProfilePageState extends State<MyProfilePage> {
                       color: Colors.grey,
                       fontSize: 14,
                       fontWeight: FontWeight.normal),
+                ),
+
+                const SizedBox(height: 10,),
+
+
+                // Button : Follow
+                Container(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (someoneUser.followed) {
+                            _apiUnfollowUser(someoneUser);
+                          } else {
+                            _apiFollowUser(someoneUser);
+                          }
+                        },
+                        child: Container(
+                          height: 30,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(
+                              color: Colors.grey.withOpacity(0.4),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              someoneUser.followed ? 'Followed' : 'Follow',
+                              style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
                 // POSTS || FOLLOWERS || FOLLOWING
@@ -425,7 +380,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
           ),
           isLoading
               ? const Center(
-                child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(),
           )
               : const SizedBox.shrink()
         ],
@@ -434,41 +389,36 @@ class _MyProfilePageState extends State<MyProfilePage> {
   }
 
   Widget _itemOfPost(Post post) {
-    return GestureDetector(
-      onLongPress: () {
-        _actionRemovePost(post);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(5),
-        child: Column(
-          children: [
-            // Post image
-            Expanded(
-              child: CachedNetworkImage(
-                width: double.infinity,
-                imageUrl: post.postImage,
-                fit: BoxFit.cover,
-                placeholder: (context, url) =>
-                const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => Icon(Icons.error),
-              ),
-            ),
-
-            const SizedBox(
-              height: 3,
-            ),
-
-            // Caption
-            SizedBox(
+    return Container(
+      padding: const EdgeInsets.all(5),
+      child: Column(
+        children: [
+          // Post image
+          Expanded(
+            child: CachedNetworkImage(
               width: double.infinity,
-              child: Text(
-                post.caption,
-                maxLines: 2,
-                style: const TextStyle(color: Colors.black45, fontSize: 16),
-              ),
-            )
-          ],
-        ),
+              imageUrl: post.postImage,
+              fit: BoxFit.cover,
+              placeholder: (context, url) =>
+              const Center(child: CircularProgressIndicator()),
+              errorWidget: (context, url, error) => Icon(Icons.error),
+            ),
+          ),
+
+          const SizedBox(
+            height: 3,
+          ),
+
+          // Caption
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              post.caption,
+              maxLines: 2,
+              style: const TextStyle(color: Colors.black45, fontSize: 16),
+            ),
+          )
+        ],
       ),
     );
   }
