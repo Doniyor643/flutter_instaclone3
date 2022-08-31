@@ -122,7 +122,7 @@ class _MyProfilePageState extends State<MyProfilePage> {
 
     if (_image == null) return;
 
-    FileService.uploadUserImage(File(_image!.path)).then((downloadUrl) => {
+    FileService.uploadUserImage(_image!).then((downloadUrl) => {
       _apiUpdateUser(downloadUrl!),
     });
   }
